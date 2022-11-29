@@ -24,16 +24,16 @@ HOMEWORK_VERDICTS = {
 }
 
 logging.basicConfig(
-        format=('%(asctime)s'
-                '%(name)s'
-                '%(levelname)s'
-                '%(message)s'
-                '%(funcName)s'
-                '%(lineno)d'),
-        level=logging.INFO,
-        filename='homework_bot.log',
-        filemode='w'
-    )
+    format=('%(asctime)s'
+            '%(name)s'
+            '%(levelname)s'
+            '%(message)s'
+            '%(funcName)s'
+            '%(lineno)d'),
+    level=logging.INFO,
+    filename='homework_bot.log',
+    filemode='w'
+)
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(stream=sys.stdout)
