@@ -79,7 +79,7 @@ def get_api_answer(timestamp):
         logger.error('Ошибка при запросе к API: {}'.format(error))
     else:
         if response.status_code != HTTPStatus.OK:
-             raise requests.HTTPError('Ошибка при запросе к API.')
+            raise requests.HTTPError('Ошибка при запросе к API.')
         return response.json()
 
 
