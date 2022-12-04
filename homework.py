@@ -8,6 +8,9 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
+from exceptions import ApiResponseStatusError, ApiRequestError
+
+
 load_dotenv()
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
@@ -41,6 +44,7 @@ def send_message(bot, message):
         logger.debug('Успешная отправка сообщения в Telegram.')
     except telegram.TelegramError as error:
         logger.error('Ошибка при отправке сообщения: {}'.format(error))
+        # raise BotSendingError('Ошибка при отправке сообщения.')
 
 
 def get_api_answer(timestamp):
@@ -53,15 +57,12 @@ def get_api_answer(timestamp):
             params=params
         )
         if response.status_code != HTTPStatus.OK:
-            logger.error('Ошибка при запросе к API!')
-        else:
-            return response.json()
-    except Exception as error:
-        logger.error('Ошибка при запросе к API: {}'.format(error))
-    # Попробовал различные варианты, но с тестами так и не справился.
+            raise ApiResponseStatusError(
+                'Статус ответа не подходит: {}'.format(response.status_code)
+            )
+    except requests.RequestException as error:
+        raise ApiRequestError('Ошибка при запросе к API') from error
     else:
-        if response.status_code != HTTPStatus.OK:
-            raise requests.HTTPError('Ошибка при запросе к API.')
         return response.json()
 
 
@@ -69,10 +70,14 @@ def check_response(response):
     """Проверяет ответ API на соответствие документации."""
     if not isinstance(response, dict):
         raise TypeError('Ответ от API не является словарем.')
-    if not response:
-        raise ValueError('В ответе пришёл пустой список.')
     if not all(['current_date' in response, 'homeworks' in response]):
         raise KeyError('В ответе API нет нужных ключей.')
+    # Вот здесь был затык, pytest считал, что я не сделал проверку наличие
+    # ключа. Решил сместить эту проверку выше и всё получилось. Получается,
+    # pytest проверяет всё последовательно и падает при первой же ошибке?
+    # Жаль, раньше не сообразил - наверное сэкономил бы во времени)
+    if not response['homeworks']:
+        raise ValueError('В ответе пришёл пустой список.')
     if not isinstance(response['homeworks'], list):
         raise TypeError('Homeworks - не список.')
     return response['homeworks'][0]
@@ -90,6 +95,8 @@ def parse_status(homework):
         raise KeyError('В ответе API отсутствует "status".') from exc
     try:
         verdict = HOMEWORK_VERDICTS[homework_status]
+    # Так почему тест всё-таки не проходит при другом фильтре? Вина теста или
+    # нужен особый вариант написания? Очень интересно.
     except Exception as exc:
         raise TypeError('Недокументированный статус домашней работы.') from exc
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -122,14 +129,12 @@ def main():
 
 if __name__ == '__main__':
     logging.basicConfig(
-        format=('%(asctime)s'
-                '%(name)s'
-                '%(levelname)s'
-                '%(message)s'
-                '%(funcName)s'
+        format=('%(asctime)s -'
+                '%(name)s -'
+                '%(levelname)s -'
+                '%(message)s -'
+                '%(funcName)s -'
                 '%(lineno)d'),
-        level=logging.INFO,
-        filename='homework_bot.log',
-        filemode='w'
+        level=logging.INFO
     )
     main()
