@@ -95,9 +95,7 @@ def parse_status(homework):
         raise KeyError('В ответе API отсутствует "status".') from exc
     try:
         verdict = HOMEWORK_VERDICTS[homework_status]
-    # Так почему тест всё-таки не проходит при другом фильтре? Вина теста или
-    # нужен особый вариант написания? Очень интересно.
-    except Exception as exc:
+    except KeyError as exc:
         raise TypeError('Недокументированный статус домашней работы.') from exc
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
