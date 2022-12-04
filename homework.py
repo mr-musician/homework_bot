@@ -23,34 +23,15 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-logging.basicConfig(
-    format=('%(asctime)s'
-            '%(name)s'
-            '%(levelname)s'
-            '%(message)s'
-            '%(funcName)s'
-            '%(lineno)d'),
-    level=logging.INFO,
-    filename='homework_bot.log',
-    filemode='w'
-)
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(stream=sys.stdout)
 logger.addHandler(handler)
-formatter = logging.Formatter('%(asctime)s'
-                              '%(name)s'
-                              '%(levelname)s'
-                              '%(message)s'
-                              '%(funcName)s'
-                              '%(lineno)d')
-handler.setFormatter(formatter)
 
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
-    tokens = (PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
-    return all(tokens)
+    return all((PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID))
 
 
 def send_message(bot, message):
@@ -58,7 +39,7 @@ def send_message(bot, message):
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logger.debug('Успешная отправка сообщения в Telegram.')
-    except Exception as error:
+    except telegram.TelegramError as error:
         logger.error('Ошибка при отправке сообщения: {}'.format(error))
 
 
@@ -77,6 +58,7 @@ def get_api_answer(timestamp):
             return response.json()
     except Exception as error:
         logger.error('Ошибка при запросе к API: {}'.format(error))
+    # Попробовал различные варианты, но с тестами так и не справился.
     else:
         if response.status_code != HTTPStatus.OK:
             raise requests.HTTPError('Ошибка при запросе к API.')
@@ -88,7 +70,7 @@ def check_response(response):
     if not isinstance(response, dict):
         raise TypeError('Ответ от API не является словарем.')
     if not response:
-        raise TypeError('В ответе пришёл пустой список.')
+        raise ValueError('В ответе пришёл пустой список.')
     if not all(['current_date' in response, 'homeworks' in response]):
         raise KeyError('В ответе API нет нужных ключей.')
     if not isinstance(response['homeworks'], list):
@@ -100,16 +82,16 @@ def parse_status(homework):
     """Проверяет статус домашней работы."""
     try:
         homework_name = homework['homework_name']
-    except Exception:
-        raise KeyError('В ответе API отсутствует "homework_name".')
+    except KeyError as exc:
+        raise KeyError('В ответе API отсутствует "homework_name".') from exc
     try:
         homework_status = homework['status']
-    except Exception:
-        raise KeyError('В ответе API отсутствует "status".')
+    except KeyError as exc:
+        raise KeyError('В ответе API отсутствует "status".') from exc
     try:
         verdict = HOMEWORK_VERDICTS[homework_status]
-    except Exception:
-        raise TypeError('Недокументированный статус домашней работы.')
+    except Exception as exc:
+        raise TypeError('Недокументированный статус домашней работы.') from exc
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -120,11 +102,11 @@ def main():
         sys.exit('Токены отсутствуют!')
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    last_message = ''
+    last_message = None
     while True:
         try:
             response = get_api_answer(timestamp)
-            timestamp = response.get('current_date')
+            timestamp = response.get('current_date', timestamp)
             homeworks = check_response(response)
             status = parse_status(homeworks)
             if status != last_message:
@@ -139,4 +121,15 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format=('%(asctime)s'
+                '%(name)s'
+                '%(levelname)s'
+                '%(message)s'
+                '%(funcName)s'
+                '%(lineno)d'),
+        level=logging.INFO,
+        filename='homework_bot.log',
+        filemode='w'
+    )
     main()
