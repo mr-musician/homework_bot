@@ -44,7 +44,6 @@ def send_message(bot, message):
         logger.debug('Успешная отправка сообщения в Telegram.')
     except telegram.TelegramError as error:
         logger.error('Ошибка при отправке сообщения: {}'.format(error))
-        # raise BotSendingError('Ошибка при отправке сообщения.')
 
 
 def get_api_answer(timestamp):
@@ -72,10 +71,6 @@ def check_response(response):
         raise TypeError('Ответ от API не является словарем.')
     if not all(['current_date' in response, 'homeworks' in response]):
         raise KeyError('В ответе API нет нужных ключей.')
-    # Вот здесь был затык, pytest считал, что я не сделал проверку наличие
-    # ключа. Решил сместить эту проверку выше и всё получилось. Получается,
-    # pytest проверяет всё последовательно и падает при первой же ошибке?
-    # Жаль, раньше не сообразил - наверное сэкономил бы во времени)
     if not response['homeworks']:
         raise ValueError('В ответе пришёл пустой список.')
     if not isinstance(response['homeworks'], list):
